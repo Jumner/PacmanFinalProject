@@ -1,0 +1,5 @@
+﻿---
+BreakStringLiterals: 'false'
+ColumnLimit: '100'
+MaxEmptyLinesToKeep: '1'
+...
