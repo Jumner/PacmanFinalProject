@@ -23,7 +23,8 @@
 // Below are the required functions for this program, but you will need to
 // create your own as well. Make sure to specify the required parameters, if
 // any.
-char **loadMap(char file[]) {
+char **loadMap(char file[], int ghosts[2][2]) {
+  int ghost = 0;
   char **map = (char **)malloc(11 * sizeof(char *));
   for (int i = 0; i < 11; i++) {
     map[i] = (char *)malloc(11 * sizeof(char));
@@ -33,34 +34,43 @@ char **loadMap(char file[]) {
     for (int x = 0; x < 11; x++) {
       if ((x > 0 && x < 10) && (y > 0 && y < 10)) {
         fscanf(mapPtr, "%s", &map[x][y]);
+        if (map[x][y] == GHOST) {
+          ghosts[ghost][0] = x;
+          ghosts[ghost][1] = y;
+          ghost++;
+          map[x][y] = DOT;
+        }
       } else {
         map[x][y] = WALL;
       }
     }
   }
+  fclose(mapPtr);
   return map;
 }
-void printMap(char **map) {
+void unloadMap(char **map) {
+  for (int i = 0; i < 11; i++) {
+    free(map[i]);
+  }
+  free(map);
+}
+void printMap(char **map, int ghosts[2][2]) {
   int ghost = 0;
   for (int y = 0; y < 11; y++) {
     for (int x = 0; x < 11; x++) {
-      switch (map[x][y]) {
-      case PACMAN:
+      if (x == ghosts[0][0] && y == ghosts[0][1]) {
+        colourChangeWin(PINK);
+        printf("G  ");
+      } else if (x == ghosts[1][0] && y == ghosts[1][1]) {
+        colourChangeWin(BLUE);
+        printf("G  ");
+      } else if (map[x][y] == PACMAN) {
         colourChangeWin(YELLOW);
-        break;
-      case GHOST:
-        if (ghost == 0) {
-          colourChangeWin(PINK);
-          ghost++;
-        } else {
-          colourChangeWin(BLUE);
-        }
-        break;
-      default:
+        printf("%c  ", map[x][y]);
+      } else {
         colourChangeWin(WHITE);
-        break;
+        printf("%c  ", map[x][y]);
       }
-      printf("%c  ", map[x][y]);
     }
     printf("\n");
   }
@@ -74,9 +84,6 @@ int winCheck(char **map) {
     }
   }
   return 1;
-}
-int loseCheck(char **map) {
-  return 0; //
 }
 void move(int *x, int *y, char dir) {
   int xdir = 0, ydir = 0;
@@ -114,6 +121,16 @@ void findPacman(char **map, int *xPos, int *yPos) {
   }
 }
 
+int loseCheck(char **map, int ghosts[2][2]) {
+  int pacX, pacY;
+  findPacman(map, &pacX, &pacY);
+  for (int i = 0; i < 2; i++) {
+    if (ghosts[i][0] == pacX && ghosts[i][1] == pacY) {
+      return 1;
+    }
+  }
+  return 0; //
+}
 int isDirection(char input) {
   char dirs[] = "wasd";
   for (int i = 0; i < 4; i++) {
@@ -145,25 +162,58 @@ void movePacman(char **map, char dir) {
   map[x][y] = PACMAN;
 }
 
-void runGame(char **map) {
-  while (true) {   // Boy I missed true and false
-    printMap(map); //
+void moveGhost(char **map, int ghosts[2][2], int ghost, char dir) {
+  if (dir == 0) {
+    return;
+  }
+  if (!isWall(map, ghosts[ghost][0], ghosts[ghost][1], dir)) {
+    move(&ghosts[ghost][0], &ghosts[ghost][1], dir);
+  }
+}
+
+char pacmanDirection(char **map, int ghosts[2][2], int ghost) {
+  char dirs[] = "wasd";
+  int points[4][2];
+  for (int i = 0; i < 4; i++) {
+    for (int o = 0; o < 2; o++) {
+      points[i][o] = ghosts[ghost][o];
+    }
+    while (!isWall(map, points[i][0], points[i][1], dirs[i])) {
+      move(&points[i][0], &points[i][1], dirs[i]);
+      if (map[points[i][0]][points[i][1]] == PACMAN) {
+        return dirs[i];
+      }
+    }
+  }
+  return 0; // Pacman not found
+}
+
+void runGame(char **map, int ghosts[2][2]) {
+  while (true) {           // Boy I missed true and false
+    printMap(map, ghosts); //
     if (winCheck(map)) {
       printf("Congratulations! You win! Press any key to exit the game\n");
       getch();
       return;
-    } else if (loseCheck(map)) {
+    } else if (loseCheck(map, ghosts)) {
       printf("Sorry, you lose. Press any key to exit the game\n");
       getch();
+      return;
     }
     char input = getInput(map);
+
+    for (int i = 0; i < 2; i++) {
+      moveGhost(map, ghosts, i, pacmanDirection(map, ghosts, i));
+    }
     movePacman(map, input);
   }
 }
 
 int main() {
   // colourChangeWin(PINK);
-  char **map = loadMap("map.txt");
-  runGame(map);
+  int ghosts[2][2];
+  char **map = loadMap("map.txt", ghosts);
+  runGame(map, ghosts);
+  unloadMap(map);
   return 0;
 }
