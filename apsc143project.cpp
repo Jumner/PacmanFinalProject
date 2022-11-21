@@ -23,7 +23,8 @@
 // Below are the required functions for this program, but you will need to
 // create your own as well. Make sure to specify the required parameters, if
 // any.
-char **loadMap(char file[], int ghosts[2][2]) {
+char ghostDirection(char **map, int ghosts[2][3], int ghost);
+char **loadMap(char file[], int ghosts[2][3]) {
   int ghost = 0;
   char **map = (char **)malloc(11 * sizeof(char *));
   for (int i = 0; i < 11; i++) {
@@ -46,6 +47,9 @@ char **loadMap(char file[], int ghosts[2][2]) {
     }
   }
   fclose(mapPtr);
+  for (int i = 0; i < 2; i++) {
+    ghosts[i][2] = ghostDirection(map, ghosts, i);
+  }
   return map;
 }
 void unloadMap(char **map) {
@@ -54,7 +58,7 @@ void unloadMap(char **map) {
   }
   free(map);
 }
-void printMap(char **map, int ghosts[2][2]) {
+void printMap(char **map, int ghosts[2][3]) {
   int ghost = 0;
   for (int y = 0; y < 11; y++) {
     for (int x = 0; x < 11; x++) {
@@ -121,7 +125,7 @@ void findPacman(char **map, int *xPos, int *yPos) {
   }
 }
 
-int loseCheck(char **map, int ghosts[2][2]) {
+int loseCheck(char **map, int ghosts[2][3]) {
   int pacX, pacY;
   findPacman(map, &pacX, &pacY);
   for (int i = 0; i < 2; i++) {
@@ -162,17 +166,27 @@ void movePacman(char **map, char dir) {
   map[x][y] = PACMAN;
 }
 
-void moveGhost(char **map, int ghosts[2][2], int ghost, char dir) {
-  if (dir == 0) {
-    return;
+int parallel(char dir1, char dir2) {
+  if (dir1 == 0 || dir2 == 0) {
+    return 0;
   }
-  if (!isWall(map, ghosts[ghost][0], ghosts[ghost][1], dir)) {
-    move(&ghosts[ghost][0], &ghosts[ghost][1], dir);
+  if (dir1 == UP || dir1 == DOWN) {
+    return (dir2 == UP || dir2 == DOWN);
+  } else {
+    return (dir2 == LEFT || dir2 == RIGHT);
   }
 }
 
-char pacmanDirection(char **map, int ghosts[2][2], int ghost) {
+char ghostDirection(char **map, int ghosts[2][3], int ghost) {
+  char dirLengths[4] = {0, 0, 0, 0};
+  int longestDir;
   char dirs[] = "wasd";
+  for (int i = 0; i < 4; i++) {
+    if (!parallel(dirs[i], ghosts[ghost][2])) {
+      longestDir = i;
+      break;
+    }
+  }
   int points[4][2];
   for (int i = 0; i < 4; i++) {
     for (int o = 0; o < 2; o++) {
@@ -181,14 +195,31 @@ char pacmanDirection(char **map, int ghosts[2][2], int ghost) {
     while (!isWall(map, points[i][0], points[i][1], dirs[i])) {
       move(&points[i][0], &points[i][1], dirs[i]);
       if (map[points[i][0]][points[i][1]] == PACMAN) {
+        ghosts[ghost][2] = dirs[i];
         return dirs[i];
       }
+      dirLengths[i]++;
+    }
+    if (dirLengths[i] > dirLengths[longestDir] &&
+        !parallel(dirs[i], ghosts[ghost][2])) {
+      longestDir = i;
     }
   }
-  return 0; // Pacman not found
+  // Pacman not found
+  return dirs[longestDir]; // Pacman not found
 }
 
-void runGame(char **map, int ghosts[2][2]) {
+void moveGhosts(char **map, int ghosts[2][3]) {
+  for (int i = 0; i < 2; i++) {
+    char dir = ghostDirection(map, ghosts, i);
+    if (isWall(map, ghosts[i][0], ghosts[i][1], ghosts[i][2])) {
+      ghosts[i][2] = dir;
+    }
+    move(&ghosts[i][0], &ghosts[i][1], ghosts[i][2]);
+  }
+}
+
+void runGame(char **map, int ghosts[2][3]) {
   while (true) {           // Boy I missed true and false
     printMap(map, ghosts); //
     if (winCheck(map)) {
@@ -202,16 +233,14 @@ void runGame(char **map, int ghosts[2][2]) {
     }
     char input = getInput(map);
 
-    for (int i = 0; i < 2; i++) {
-      moveGhost(map, ghosts, i, pacmanDirection(map, ghosts, i));
-    }
+    moveGhosts(map, ghosts);
     movePacman(map, input);
   }
 }
 
 int main() {
   // colourChangeWin(PINK);
-  int ghosts[2][2];
+  int ghosts[2][3];
   char **map = loadMap("map.txt", ghosts);
   runGame(map, ghosts);
   unloadMap(map);
