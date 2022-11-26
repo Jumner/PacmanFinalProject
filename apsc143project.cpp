@@ -6,7 +6,7 @@
 #include "colours.h"
 #include <conio.h> // For instantanious output
 // Please clarify with me if you have issues because I am cross compiling to
-// windows and running inside of wine
+// windows and running inside wine
 #include <cstdlib>
 #include <stdio.h>
 #include <stdlib.h>
@@ -90,16 +90,16 @@ void printMap(char **map, int ghosts[2][3]) {
   for (int y = 0; y < 11; y++) {
     for (int x = 0; x < 11; x++) {                  // Iterate through the map
       if (x == ghosts[0][0] && y == ghosts[0][1]) { // At the position of the first ghost
-        colourChangeWin(PINK);                      // First one is pink!
+        colourChange(PINK);                         // First one is pink!
         printf("G  "); // Print G character with 2 spaces (map[x][y] has '.' in it)
       } else if (x == ghosts[1][0] && y == ghosts[1][1]) { // At the position of the second ghost
-        colourChangeWin(BLUE);                             // Second one is blue!
+        colourChange(BLUE);                                // Second one is blue!
         printf("G  ");             // Print G character with 2 spaces (map[x][y] has '.' in it)
       } else {                     // Not a ghost
         if (map[x][y] == PACMAN) { // It's Pacman
-          colourChangeWin(YELLOW); // Make him yellow
+          colourChange(YELLOW);    // Make him yellow
         } else {                   // Walls / dots
-          colourChangeWin(WHITE);  // Are white
+          colourChange(WHITE);     // Are white
         }
         printf("%c  ", map[x][y]); // Print the character
       }
