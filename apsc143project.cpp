@@ -4,7 +4,6 @@
 
 // Make sure to include all relevant libraries
 #include "colours.h"
-#include <conio.h> // For instantanious output
 // Please clarify with me if you have issues because I am cross compiling to
 // windows and running inside wine
 #include <cstdlib>
@@ -26,6 +25,7 @@
 
 char **map;                // Declare a global 2d array of chars for the map
 int ghosts[2][3];          // Declare a global 2d array of ints for the ghost position and direction
+int pacman[2];             // Declare a global array of ints for pacmans location
 void loadMap(char file[]); // Load map from file and return it
 void unloadMap();          // Free the memory allocated by loadMap()
 void printMap();           // Print the map to the user
@@ -35,8 +35,7 @@ char getInput();           // returns a *Valid* character instantaniously
 int isDirection(char input); // Returns if character is a direction (wasd)
 int isWall(int x, int y,
            char dir); // Returns 1 if moving from x,y in direction dir would hit a wall
-int parallel(char dir1, char dir2);    // Returns 1 if dir1 is parallel to dir2
-void findPacman(int *xPos, int *yPos); // Sets xPos,yPos to pacmans position
+int parallel(char dir1, char dir2); // Returns 1 if dir1 is parallel to dir2
 char ghostDirection(int ghost); // Modifies ghost direction if pacman is seen and returns direction
                                 // to move if wall is hit
 void move(int *x, int *y, char dir); // Moves x,y 1 unit in direction dir
@@ -59,10 +58,14 @@ void loadMap(char file[]) {
         fscanf(mapPtr, "%s",
                &map[x][y]); // Scans a string so spaces are ignored (only really gets one char)
         if (map[x][y] == GHOST) {
-          ghosts[ghost][0] = x; // Set ghost position
-          ghosts[ghost][1] = y; // Arrays are pointers so its always passed by reference
-          ghost++;              // Move on to the next ghost
-          map[x][y] = DOT;      // Change G to . character
+          ghosts[ghost][0] = x;           // Set ghost position
+          ghosts[ghost][1] = y;           // Arrays are pointers so its always passed by reference
+          ghost++;                        // Move on to the next ghost
+          map[x][y] = DOT;                // Change G to . character
+        } else if (map[x][y] == PACMAN) { // Set Pacman position
+          pacman[0] = x;
+          pacman[1] = y;
+          map[x][y] = EMPTY;
         }
       } else {            // Edge of map
         map[x][y] = WALL; // Set to wall (outer wall not included in map file)
@@ -91,15 +94,16 @@ void printMap() {
         colourChange(PINK);                         // First one is pink!
         printf("G "); // Print G character with a space (map[x][y] has '.' in it)
       } else if (x == ghosts[1][0] && y == ghosts[1][1]) { // At the position of the second ghost
-        colourChange(BLUE);                                // Second one is blue!
-        printf("G ");                   // Print G character with a space (map[x][y] has '.' in it)
-      } else {                          // Not a ghost
-        if (map[x][y] == PACMAN) {      // It's Pacman
-          colourChange(YELLOW);         // Make him yellow
-        } else if (map[x][y] == WALL) { // Walls
-          colourChange(BLUE);           // Are blue!
-        } else {                        // Dots
-          colourChange(WHITE);          // Are white!
+        colourChange(BLUE);                                // First one is pink!
+        printf("G "); // Print G character with a space (map[x][y] has '.' in it)
+      } else if (x == pacman[0] && y == pacman[1]) { // At the position of pacman
+        colourChange(YELLOW);                        // Pacman is yellow
+        printf("P ");                                // Print P character with a space
+      } else {                                       // Not a ghost
+        if (map[x][y] == WALL) {                     // Walls
+          colourChange(BLUE);                        // Are blue!
+        } else {                                     // Dots
+          colourChange(WHITE);                       // Are white!
         }
         printf("%c ", map[x][y]); // Print the character
       }
@@ -120,11 +124,9 @@ int winCheck() {
 }
 
 int loseCheck() {
-  int pacX, pacY;
-  findPacman(&pacX, &pacY);                             // Put pacmans position in pacX,pacY
-  for (int i = 0; i < 2; i++) {                         // For each ghost
-    if (ghosts[i][0] == pacX && ghosts[i][1] == pacY) { // Ghost in the same pos as pacman
-      return 1;                                         // Pacman died ;(
+  for (int i = 0; i < 2; i++) {                                   // For each ghost
+    if (ghosts[i][0] == pacman[0] && ghosts[i][1] == pacman[1]) { // Ghost in the same pos as pacman
+      return 1;                                                   // Pacman died ;(
     }
   }
   return 0; // Pacman is not dead
@@ -135,10 +137,8 @@ char getInput() {
   if (!isDirection(input)) { // If input is not a valid direction (wasd)
     return getInput();       // Try again (not technically recursion as my HS teacher would argue)
   }
-  int x, y;
-  findPacman(&x, &y);        // Store pacmans position in x,y
-  if (isWall(x, y, input)) { // If direction would cause him to hit a wall
-    return getInput();       // Try again
+  if (isWall(pacman[0], pacman[1], input)) { // If direction would cause him to hit a wall
+    return getInput();                       // Try again
   }
   return input; // Valid input, return it
 }
@@ -166,18 +166,6 @@ int parallel(char dir1, char dir2) {
     return (dir2 == UP || dir2 == DOWN);    // Returns 1 if dir2 is also vertical
   } else {                                  // Dir1 is horizontal
     return (dir2 == LEFT || dir2 == RIGHT); // Returns 1 if dir2 is also horizontal
-  }
-}
-
-void findPacman(int *xPos, int *yPos) {
-  for (int y = 1; y < 10; y++) {
-    for (int x = 1; x < 10; x++) { // Iterate through inner board
-      if (map[x][y] == PACMAN) {   // If its pacman
-        *xPos = x;                 // Update the values in the xPos, yPos pointers
-        *yPos = y;
-        return; // Exit out (no need to keep looking)
-      }
-    }
   }
 }
 
@@ -212,10 +200,10 @@ char ghostDirection(int ghost) {
                    dirs[i])) { // Keep moving until moving would hit a wall
 
       move(&points[i][0], &points[i][1], dirs[i]); // Move in the current direction
-      if (map[points[i][0]][points[i][1]] ==
-          PACMAN) {                 // If Pacman is at point (along the sightline)
-        ghosts[ghost][2] = dirs[i]; // Update the ghosts direction (so it moves right away)
-        return dirs[i];             // And return it
+      if (points[i][0] == pacman[0] &&
+          points[i][1] == pacman[1]) { // If Pacman is at point (along the sightline)
+        ghosts[ghost][2] = dirs[i];    // Update the ghosts direction (so it moves right away)
+        return dirs[i];                // And return it
       }
       dirLengths[i]++; // Gone another step along the sightline, so increase its length
     }
@@ -252,11 +240,8 @@ void move(int *x, int *y, char dir) {
 }
 
 void movePacman(char dir) {
-  int x, y;
-  findPacman(&x, &y); // Store pacmans position in x,y
-  map[x][y] = EMPTY;  // Set his current square to empty (he ate the dot)
-  move(&x, &y, dir);  // Move x,y in direction dir
-  map[x][y] = PACMAN; // Set his new square to pacman (overriding the dot)
+  move(&pacman[0], &pacman[1], dir); // Move x,y in direction dir
+  map[pacman[0]][pacman[1]] = EMPTY; // Set his current square to empty (he ate the dot)
 }
 
 void moveGhosts() {
