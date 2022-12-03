@@ -120,13 +120,20 @@ int winCheck() {
       }
     }
   }
+  printMap();
+  colourChange(WHITE);
+  printf("Congratulations! You win! Press any key to exit the game\n");
+  getch();  // Wait for keypress to exit
   return 1; // No dots could be found. Game has been won!
 }
 
 int loseCheck() {
   for (int i = 0; i < 2; i++) {                                   // For each ghost
     if (ghosts[i][0] == pacman[0] && ghosts[i][1] == pacman[1]) { // Ghost in the same pos as pacman
-      return 1;                                                   // Pacman died ;(
+      colourChange(WHITE);
+      printf("Sorry, you lose. Press any key to exit the game\n");
+      getch();  // Wait for keypress to exit
+      return 1; // Pacman died ;(
     }
   }
   return 0; // Pacman is not dead
@@ -258,29 +265,14 @@ void moveGhosts() {
 }
 
 void runGame() {
-  while (true) {      // Boy I missed true and false
-    printMap();       // Print the map out
-    if (winCheck()) { // If player won
-      colourChange(WHITE);
-      printf("Congratulations! You win! Press any key to exit the game\n");
-      getch();                // Wait for keypress to exit
-      return;                 // Leave function, game over!
-    } else if (loseCheck()) { // If player lost
-      colourChange(WHITE);
-      printf("Sorry, you lose. Press any key to exit the game\n");
-      getch(); // Wait for keypress to exit
-      return;  // Leave function, game over!
-    }
-    char input = getInput(); // Get a valid direction to move
-
-    moveGhosts();      // Move the ghosts
-    movePacman(input); // Move pacman in the entered direction
+  while (!winCheck() && !loseCheck()) { // If game is lot won or lost
+    printMap();                         // Print the map out
+    moveGhosts();                       // Move the ghosts
+    movePacman(getInput());             // Move pacman in the user entered direction
   }
 }
 
 int main() {
-  int ghosts[2][3];   // Ghosts stores 2 arrays that each store x,y,direction (ghosts only change
-                      // direction when spotting pacman or hitting walls) so its cached
   loadMap("map.txt"); // Load the map from map.txt
   runGame();          // Run the game loop
   unloadMap();        // Game over! free the memory in map
